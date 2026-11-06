@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BEAT SURGE - 4키 네온 리듬게임</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="bg-grid"></div>
+
+    <div id="gameContainer">
+        <!-- Main Game Canvas -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- 1. Start Screen -->
+        <div id="startScreen" class="ui-screen">
+            <div class="title-screen-content">
+                <div class="game-logo">BEAT SURGE</div>
+                <div class="game-sublogo">NEON FALLING RHYTHM</div>
+                
+                <div class="menu-buttons">
+                    <button id="btnStart" class="btn btn-primary">
+                        <span>▶ 게임 시작</span>
+                    </button>
+                    <button id="btnSettings" class="btn btn-secondary">
+                        <span>⚙ 게임 설정</span>
+                    </button>
+                </div>
+
+                <div class="key-guide-pill">
+                    <span>기본 조작키:</span>
+                    <span class="key-badge">D</span>
+                    <span class="key-badge">F</span>
+                    <span class="key-badge">J</span>
+                    <span class="key-badge">K</span>
+                    <span>(또는 화면 터치)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Song Select Screen -->
+        <div id="songSelectScreen" class="ui-screen hidden">
+            <div class="song-select-container">
+                <div class="screen-header">
+                    <h2>음악 선택 (MUSIC SELECT)</h2>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <div class="speed-control-bar">
+                            <label>노트 속도</label>
+                            <button id="speedDownBtn" class="speed-btn">-</button>
+                            <span id="speedDisplay" class="speed-badge">2.5x</span>
+                            <button id="speedUpBtn" class="speed-btn">+</button>
+                        </div>
+                        <button id="btnBackToTitle" class="btn btn-secondary" style="padding: 8px 16px;">
+                            <span>메인으로</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="song-list-scroll" id="songListContainer">
+                    <!-- Built-in Songs rendered by JS -->
+                </div>
+
+                <!-- Custom Audio Upload Dropzone -->
+                <div class="upload-card" id="dropZone">
+                    <input type="file" id="customFileInput" accept="audio/*">
+                    <div class="upload-icon">🎧</div>
+                    <div class="upload-title">내 음악(MP3, WAV, OGG) 추가하기</div>
+                    <div class="upload-desc">여기를 클릭하거나 오디오 파일을 드래그하여 드롭하세요. 자동으로 노트를 분석합니다!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. In-Game HUD Overlay -->
+        <div id="inGameHud" class="hidden">
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div id="hudProgressFill" class="progress-fill"></div>
+            </div>
+
+            <div class="hud-top">
+                <div class="hud-song-info">
+                    <div id="hudSongTitle" class="hud-song-title">Song Title</div>
+                    <div id="hudArtist" class="hud-artist">Artist</div>
+                </div>
+
+                <button id="btnPause" class="pause-btn" title="일시정지 (ESC)">⏸</button>
+
+                <div class="hud-score-box">
+                    <div id="hudScore" class="hud-score">0</div>
+                    <div id="hudAccuracy" class="hud-accuracy">100.0%</div>
+                </div>
+            </div>
+
+            <!-- Health Bar -->
+            <div class="health-bar-wrapper">
+                <div id="hudHealthFill" class="health-bar-fill"></div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                <div style="font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 8px;">
+                    Combo: <span id="hudCombo" style="color: #fff; font-weight: bold;">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Countdown Overlay -->
+        <div id="countdownOverlay" class="countdown-overlay hidden">
+            <div id="countdownText" class="countdown-text">3</div>
+            <div class="countdown-tip">준비하세요! [ D ] [ F ] [ J ] [ K ]</div>
+        </div>
+
+        <!-- 5. Pause Overlay -->
+        <div id="pauseOverlay" class="ui-screen hidden">
+            <div class="title-screen-content" style="max-width: 400px;">
+                <h2 style="font-size: 32px; margin-bottom: 24px; color: #fff;">일시정지</h2>
+                <div class="menu-buttons">
+                    <button id="btnResume" class="btn btn-primary">계속하기</button>
+                    <button id="btnRestart" class="btn btn-secondary">다시 시작</button>
+                    <button id="btnQuitToSelect" class="btn btn-secondary">곡 선택으로</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Result Screen -->
+        <div id="resultScreen" class="ui-screen hidden">
+            <div class="result-box">
+                <div style="font-size: 14px; color: var(--neon-blue); letter-spacing: 2px; font-weight: 700;">STAGE CLEAR</div>
+                <div id="resSongTitle" class="result-song-title">Song Title</div>
+                <div id="resRank" class="result-rank">S</div>
+
+                <div class="result-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">최종 점수</span>
+                        <span id="resScore" class="stat-val">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">정확도</span>
+                        <span id="resAccuracy" class="stat-val">0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">MAX COMBO</span>
+                        <span id="resMaxCombo" class="stat-val">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">PERFECT</span>
+                        <span id="resPerfect" class="stat-val perfect">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">GREAT</span>
+                        <span id="resGreat" class="stat-val great">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">GOOD</span>
+                        <span id="resGood" class="stat-val good">0</span>
+                    </div>
+                    <div class="stat-item" style="grid-column: span 2;">
+                        <span class="stat-label">MISS</span>
+                        <span id="resMiss" class="stat-val miss">0</span>
+                    </div>
+                </div>
+
+                <div class="menu-buttons" style="flex-direction: row; gap: 12px;">
+                    <button id="btnResultRetry" class="btn btn-primary" style="flex: 1;">다시하기</button>
+                    <button id="btnResultSongSelect" class="btn btn-secondary" style="flex: 1;">곡 목록</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. Settings Modal -->
+        <div id="settingsModal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>게임 설정</h3>
+                    <button id="btnCloseSettings" class="close-btn">&times;</button>
+                </div>
+
+                <div class="setting-row">
+                    <span class="setting-label">노트 낙하 배속</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="settingSpeedRange" min="1.0" max="5.0" step="0.25" value="2.5">
+                        <span id="settingSpeedVal" style="min-width: 40px; font-weight: bold; color: var(--neon-blue);">2.5x</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <span class="setting-label">배경음악 (BGM) 볼륨</span>
+                    <input type="range" id="settingBgmVolume" min="0" max="100" value="70">
+                </div>
+
+                <div class="setting-row">
+                    <span class="setting-label">효과음 (SFX) 볼륨</span>
+                    <input type="range" id="settingSfxVolume" min="0" max="100" value="85">
+                </div>
+
+                <div class="setting-row">
+                    <span class="setting-label">싱크 오프셋 (판정선 조절)</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="settingOffsetRange" min="-150" max="150" step="5" value="0">
+                        <span id="settingOffsetVal" style="min-width: 50px; font-weight: bold; color: var(--neon-purple);">0ms</span>
+                    </div>
+                </div>
+
+                <div style="margin-top: 24px; text-align: center;">
+                    <button id="btnSaveSettings" class="btn btn-primary" style="width: 100%;">저장 및 닫기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast / Loader -->
+        <div id="toast" class="toast hidden">
+            <div class="spinner"></div>
+            <span id="toastMsg">처리 중...</span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/audio.js"></script>
+    <script src="js/beatmaps.js"></script>
+    <script src="js/custom_analyzer.js"></script>
+    <script src="js/game.js"></script>
+    <script>
+        // Main UI Wiring and Controller
+        function setupUI() {
+            if (typeof initRhythmGame === 'function') {
+                initRhythmGame();
+            }
+            const sound = window.soundEngine;
+            const game = window.game;
+
+            if (!game) {
+                console.warn('Game engine not initialized yet, retrying...');
+                setTimeout(setupUI, 50);
+                return;
+            }
+
+            // DOM Elements
+            const startScreen = document.getElementById('startScreen');
+            const songSelectScreen = document.getElementById('songSelectScreen');
+            const settingsModal = document.getElementById('settingsModal');
+            const songListContainer = document.getElementById('songListContainer');
+            const speedDisplay = document.getElementById('speedDisplay');
+            const speedDownBtn = document.getElementById('speedDownBtn');
+            const speedUpBtn = document.getElementById('speedUpBtn');
+
+            const btnStart = document.getElementById('btnStart');
+            const btnSettings = document.getElementById('btnSettings');
+            const btnCloseSettings = document.getElementById('btnCloseSettings');
+            const btnSaveSettings = document.getElementById('btnSaveSettings');
+            const btnBackToTitle = document.getElementById('btnBackToTitle');
+
+            const btnPause = document.getElementById('btnPause');
+            const btnResume = document.getElementById('btnResume');
+            const btnRestart = document.getElementById('btnRestart');
+            const btnQuitToSelect = document.getElementById('btnQuitToSelect');
+
+            const btnResultRetry = document.getElementById('btnResultRetry');
+            const btnResultSongSelect = document.getElementById('btnResultSongSelect');
+
+            const dropZone = document.getElementById('dropZone');
+            const customFileInput = document.getElementById('customFileInput');
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+
+            // Render Built-in Song Cards
+            function renderSongList() {
+                songListContainer.innerHTML = '';
+                const songs = window.BUILTIN_SONGS;
+
+                songs.forEach(song => {
+                    const card = document.createElement('div');
+                    card.className = 'song-card';
+                    card.style.setProperty('--card-color', song.color);
+
+                    card.innerHTML = `
+                        <div class="song-thumb" style="background: ${song.previewColor}">🎵</div>
+                        <div class="song-info">
+                            <div class="song-title-row">
+                                <span class="song-title">${song.title}</span>
+                                <span class="diff-badge ${song.difficulty}">${song.difficulty} Lv.${song.level}</span>
+                            </div>
+                            <div class="song-artist">${song.artist}</div>
+                            <div class="song-meta">
+                                <span>BPM: ${song.bpm}</span>
+                                <span>길이: ${Math.floor(song.duration / 60)}:${(song.duration % 60).toString().padStart(2, '0')}</span>
+                                <span>노트 수: ${song.notes.length}개</span>
+                            </div>
+                            <div class="song-desc">${song.description}</div>
+                        </div>
+                        <button class="play-action-btn">PLAY</button>
+                    `;
+
+                    card.addEventListener('click', async () => {
+                        await sound.ensureReady();
+                        game.startSong(song);
+                    });
+
+                    songListContainer.appendChild(card);
+                });
+            }
+
+            // Speed Control
+            function updateSpeed(newSpeed) {
+                game.speed = Math.min(5.0, Math.max(1.0, parseFloat(newSpeed.toFixed(2))));
+                speedDisplay.textContent = `${game.speed.toFixed(1)}x`;
+                document.getElementById('settingSpeedRange').value = game.speed;
+                document.getElementById('settingSpeedVal').textContent = `${game.speed.toFixed(1)}x`;
+                localStorage.setItem('rhythm_speed', game.speed);
+            }
+
+            speedDownBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                updateSpeed(game.speed - 0.25);
+            });
+            speedUpBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                updateSpeed(game.speed + 0.25);
+            });
+
+            // Start Screen Buttons
+            btnStart.addEventListener('click', async () => {
+                await sound.ensureReady();
+                startScreen.classList.add('hidden');
+                songSelectScreen.classList.remove('hidden');
+                renderSongList();
+            });
+
+            btnBackToTitle.addEventListener('click', () => {
+                songSelectScreen.classList.add('hidden');
+                startScreen.classList.remove('hidden');
+            });
+
+            // Settings Modal
+            btnSettings.addEventListener('click', () => {
+                settingsModal.classList.remove('hidden');
+            });
+            btnCloseSettings.addEventListener('click', () => {
+                settingsModal.classList.add('hidden');
+            });
+            btnSaveSettings.addEventListener('click', () => {
+                settingsModal.classList.add('hidden');
+            });
+
+            const settingSpeedRange = document.getElementById('settingSpeedRange');
+            settingSpeedRange.addEventListener('input', (e) => {
+                updateSpeed(parseFloat(e.target.value));
+            });
+
+            const settingBgmVolume = document.getElementById('settingBgmVolume');
+            settingBgmVolume.addEventListener('input', (e) => {
+                sound.setBgmVolume(e.target.value / 100);
+            });
+
+            const settingSfxVolume = document.getElementById('settingSfxVolume');
+            settingSfxVolume.addEventListener('input', (e) => {
+                sound.setSfxVolume(e.target.value / 100);
+            });
+
+            const settingOffsetRange = document.getElementById('settingOffsetRange');
+            const settingOffsetVal = document.getElementById('settingOffsetVal');
+            settingOffsetRange.addEventListener('input', (e) => {
+                game.offset = parseFloat(e.target.value);
+                settingOffsetVal.textContent = `${game.offset}ms`;
+                localStorage.setItem('rhythm_offset', game.offset);
+            });
+
+            // In-Game Controls
+            btnPause.addEventListener('click', () => {
+                game.togglePause();
+            });
+
+            btnResume.addEventListener('click', () => {
+                game.togglePause();
+            });
+
+            btnRestart.addEventListener('click', () => {
+                game.restartSong();
+            });
+
+            btnQuitToSelect.addEventListener('click', () => {
+                game.quitToSongSelect();
+            });
+
+            btnResultRetry.addEventListener('click', () => {
+                game.restartSong();
+            });
+
+            btnResultSongSelect.addEventListener('click', () => {
+                game.quitToSongSelect();
+            });
+
+            // Toast helper
+            function showToast(msg, isProcessing = true) {
+                toastMsg.textContent = msg;
+                toast.classList.remove('hidden');
+                const spinner = toast.querySelector('.spinner');
+                if (spinner) spinner.style.display = isProcessing ? 'block' : 'none';
+            }
+            function hideToast() {
+                toast.classList.add('hidden');
+            }
+
+            // Custom Audio File Drop & Upload
+            dropZone.addEventListener('click', () => customFileInput.click());
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = 'var(--neon-blue)';
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    processAudioFile(e.dataTransfer.files[0]);
+                }
+            });
+
+            customFileInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    processAudioFile(e.target.files[0]);
+                }
+            });
+
+            async function processAudioFile(file) {
+                showToast('오디오 파일 분석 준비 중...', true);
+                try {
+                    const customSong = await window.customAnalyzer.analyzeFile(file, (percent, statusText) => {
+                        showToast(`${statusText} (${percent}%)`, true);
+                    });
+
+                    // Add to song list
+                    window.BUILTIN_SONGS.unshift(customSong);
+                    renderSongList();
+
+                    showToast('분석 완료! 곧 게임이 시작됩니다.', false);
+                    setTimeout(() => {
+                        hideToast();
+                        game.startSong(customSong);
+                    }, 800);
+                } catch (err) {
+                    console.error('Audio analysis error:', err);
+                    showToast('오디오 분석 중 오류가 발생했습니다. 다른 파일을 시도해보세요.', false);
+                    setTimeout(hideToast, 2500);
+                }
+            }
+
+            // Sync initial speed display
+            updateSpeed(game.speed);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupUI);
+        } else {
+            setupUI();
+        }
+    </script>
+</body>
+</html>
